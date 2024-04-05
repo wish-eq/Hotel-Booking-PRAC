@@ -16,6 +16,7 @@ const swaggerUI = require("swagger-ui-express");
 const hospitals = require("./routes/hospitals");
 const appointments = require("./routes/appointments");
 const auth = require("./routes/auth");
+const hotels = require("./routes/hotels");
 
 // Load env vars
 dotenv.config({ path: "./config/config.env" });
@@ -59,6 +60,7 @@ app.use(cor());
 app.use("/api/v1/hospitals", hospitals);
 app.use("/api/v1/auth", auth);
 app.use("/api/v1/appointments", appointments);
+app.use("/api/v1/hotels", hotels);
 
 const PORT = process.env.PORT || 5000;
 

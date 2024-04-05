@@ -6,11 +6,12 @@ const User = require("../models/User");
 // @access  Public
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, telephonenumber, email, password, role } = req.body;
 
     // Create user
     const user = await User.create({
       name,
+      telephonenumber,
       email,
       password,
       role,
@@ -42,12 +43,10 @@ exports.login = async (req, res, next) => {
 
   //Type of email & password
   if (typeof email != "string" || typeof password != "string") {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        msg: "Cannot convert email and password to string",
-      });
+    return res.status(400).json({
+      success: false,
+      msg: "Cannot convert email and password to string",
+    });
   }
 
   //Check for user
