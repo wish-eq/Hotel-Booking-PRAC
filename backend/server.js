@@ -17,6 +17,7 @@ const hospitals = require("./routes/hospitals");
 const appointments = require("./routes/appointments");
 const auth = require("./routes/auth");
 const hotels = require("./routes/hotels");
+const bookings = require("./routes/bookings");
 
 // Load env vars
 dotenv.config({ path: "./config/config.env" });
@@ -61,6 +62,7 @@ app.use("/api/v1/hospitals", hospitals);
 app.use("/api/v1/auth", auth);
 app.use("/api/v1/appointments", appointments);
 app.use("/api/v1/hotels", hotels);
+app.use("/api/v1/bookings", bookings);
 
 const PORT = process.env.PORT || 5000;
 
@@ -90,8 +92,17 @@ const swaggerOptions = {
         url: "http://localhost:5000/api/v1",
       },
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
   },
-  apis: ["./routes/*js"],
+  apis: ["./routes/*.js"],
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);

@@ -42,13 +42,28 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  otp: {
+    type: String,
+  },
+  otpExpire: {
+    type: Date,
+  },
+  isEmailVerified: {
+    type: Boolean,
+    default: false,
+  },
 });
-
-// Encrypt password using bcrypt
+//
 UserSchema.pre("save", async function (next) {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified("password")) return next();
+
+  // Continue with hashing the password
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
+//
 
 // Sign JWT and return
 UserSchema.methods.getSignedJwtToken = function () {

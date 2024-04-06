@@ -1,7 +1,13 @@
 // routes/auth.js
 
 const express = require("express");
-const { register, login, getMe, logout } = require("../controllers/auth");
+const {
+  register,
+  login,
+  getMe,
+  logout,
+  verifyOtp,
+} = require("../controllers/auth");
 
 const router = express.Router();
 
@@ -101,5 +107,36 @@ router.get("/logout", logout);
  *         description: Unauthorized access
  */
 router.get("/me", protect, getMe);
+
+/**
+ * @swagger
+ * /auth/verify-otp:
+ *   post:
+ *     summary: Verify user's OTP
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               otp:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       400:
+ *         description: Invalid or expired OTP
+ *       500:
+ *         description: Server error
+ */
+router.post("/verify-otp", verifyOtp);
 
 module.exports = router;

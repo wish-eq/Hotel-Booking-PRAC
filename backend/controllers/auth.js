@@ -1,5 +1,63 @@
 // controllers/auth.js
 const User = require("../models/User");
+const nodemailer = require("nodemailer");
+
+// Helper function to send OTP via email
+async function sendOtpEmail(user, otp) {
+  // Configure your SMTP transporter
+  let transporter = nodemailer.createTransport({
+    // Example with Gmail; use your preferred service
+    service: "gmail",
+    auth: {
+      user: "hotelbookingswdev@gmail.com", // replace with your email
+      pass: "cjqwklusnxnrzkyd", // replace with your email password
+    },
+  });
+
+  // Send mail with defined transport object
+  let info = await transporter.sendMail({
+    from: '"Hotel Booking JODQ" <hotelbookingswdev@gmail.com>', // sender address
+    to: user.email, // list of receivers
+    subject: "OTP for Email Verification", // Subject line
+    text: `Your OTP is ${otp}`, // plain text body
+  });
+
+  console.log("Message sent: %s", info.messageId);
+}
+
+// @desc    Verify OTP
+// @route   POST /api/v1/auth/verify-otp
+// @access  Public
+exports.verifyOtp = async (req, res, next) => {
+  const { email, otp } = req.body;
+
+  try {
+    const user = await User.findOne({
+      email,
+      otp,
+      otpExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, msg: "Invalid or expired OTP" });
+    }
+
+    // OTP is valid, remove otp and otpExpire from user
+    user.isEmailVerified = true;
+    user.otp = undefined;
+    user.otpExpire = undefined;
+    await user.save();
+
+    res
+      .status(200)
+      .json({ success: true, message: "Email verified successfully" });
+  } catch (err) {
+    console.error("Error during OTP verification:", err); // Enhanced error logging
+    res.status(500).json({ success: false, msg: "Server error" });
+  }
+};
 
 // @desc    Register user
 // @route   POST /api/v1/auth/register
@@ -17,10 +75,17 @@ exports.register = async (req, res, next) => {
       role,
     });
 
-    // Create token
-    // const token = user.getSignedJwtToken();
+    // Generate OTP and set expiration
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
+    user.otp = otp;
+    user.otpExpire = Date.now() + 10 * 60 * 1000; // OTP expires in 10 minutes
 
-    // res.status(200).json({ success: true, token });
+    await user.save();
+
+    // Send OTP via email
+    await sendOtpEmail(user, otp);
+
+    // Send token response
     sendTokenResponse(user, 200, res);
   } catch (err) {
     res.status(400).json({ success: false });
@@ -34,37 +99,45 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   const { email, password } = req.body;
 
-  //Validate email & password
-  if (!email || !password) {
-    return res
-      .status(400)
-      .json({ success: false, msg: "Please provide an email and password" });
-  }
+  console.log(`Attempting to log in with email: ${email}`);
 
-  //Type of email & password
-  if (typeof email != "string" || typeof password != "string") {
-    return res.status(400).json({
-      success: false,
-      msg: "Cannot convert email and password to string",
-    });
-  }
+  try {
+    const user = await User.findOne({ email }).select("+password");
+    console.log("user:", user);
 
-  //Check for user
-  const user = await User.findOne({ email }).select("+password");
-  if (!user) {
-    return res.status(400).json({ success: false, msg: "Invalid credentials" });
-  }
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, msg: "Invalid credentials" });
+    }
 
-  //Check if password matches
-  const isMatch = await user.matchPassword(password);
-  if (!isMatch) {
-    return res.status(401).json({ success: false, msg: "Invalid credentials" });
-  }
+    console.log(
+      `User found: ${user.email}, isEmailVerified: ${user.isEmailVerified}`
+    );
 
-  //Create token
-  // const token = user.getSignedJwtToken();
-  // res.status(200).json({success:true, token});
-  sendTokenResponse(user, 200, res);
+    if (!user.isEmailVerified) {
+      return res.status(401).json({
+        success: false,
+        msg: "Please verify your email before logging in",
+      });
+    }
+
+    const isMatch = await user.matchPassword(password);
+    console.log("password: ", password);
+
+    console.log(`Password match: ${isMatch}`);
+
+    if (!isMatch) {
+      return res
+        .status(401)
+        .json({ success: false, msg: "Password not match credentials" });
+    }
+
+    sendTokenResponse(user, 200, res);
+  } catch (error) {
+    console.error(`Login error: ${error.message}`);
+    res.status(500).json({ success: false, msg: "Server error" });
+  }
 };
 
 // Get token from model, create cookie and send response
