@@ -11,33 +11,6 @@ const router = express.Router({ mergeParams: true });
 const { protect, authorize } = require("../middleware/auth");
 
 /**
- * components:
-  schemas:
-    Booking:
-      type: object
-      required:
-        - bookingDate
-        - hotel
-      properties:
-        bookingDate:
-          type: object
-          properties:
-            start:
-              type: string
-              format: date-time
-            end:
-              type: string
-              format: date-time
-        user:
-          type: string
-          description: User ID of the person making the booking
-        hotel:
-          type: string
-          description: Hotel ID of the booked hotel
-
- */
-
-/**
  * @swagger
  * /bookings:
  *   get:
