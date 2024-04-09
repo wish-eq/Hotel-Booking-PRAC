@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 const UserSchema = new mongoose.Schema({
   name: {
@@ -36,21 +37,17 @@ const UserSchema = new mongoose.Schema({
     minlength: 6,
     select: false,
   },
-  resetPasswordToken: String,
-  resetPasswordExpire: Date,
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  otp: {
-    type: String,
-  },
-  otpExpire: {
-    type: Date,
-  },
   isEmailVerified: {
     type: Boolean,
     default: false,
+  },
+  resetPasswordToken: String,
+  resetPasswordExpire: Date,
+  emailVerificationToken: String,
+  emailVerificationTokenExpire: Date,
+  createdAt: {
+    type: Date,
+    default: Date.now,
   },
 });
 //
@@ -75,6 +72,38 @@ UserSchema.methods.getSignedJwtToken = function () {
 // Match user entered password to hashed password in database
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+UserSchema.methods.getResetPasswordToken = function () {
+  // Generate token
+  const resetToken = crypto.randomBytes(20).toString("hex");
+
+  // Hash token and set to resetPasswordToken field
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  // Set expire time
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+  return resetToken;
+};
+
+UserSchema.methods.getVerificationToken = function () {
+  // Generate token
+  const verificationToken = crypto.randomBytes(20).toString("hex");
+
+  // Hash token and set to a new field (e.g., emailVerificationToken)
+  this.emailVerificationToken = crypto
+    .createHash("sha256")
+    .update(verificationToken)
+    .digest("hex");
+
+  // Set expire time for the token (optional)
+  this.emailVerificationTokenExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+  return verificationToken;
 };
 
 module.exports = mongoose.model("User", UserSchema);

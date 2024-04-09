@@ -1,12 +1,10 @@
-// controllers/auth.js
 const User = require("../models/User");
 const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 
-// Helper function to send OTP via email
-async function sendOtpEmail(user, otp) {
-  // Configure your SMTP transporter
+async function sendVerificationEmail(user, verificationUrl) {
+  // SMTP configuration and email sending logic
   let transporter = nodemailer.createTransport({
-    // Example with Gmail; use your preferred service
     service: "gmail",
     auth: {
       user: "hotelbookingswdev@gmail.com", // replace with your email
@@ -14,48 +12,151 @@ async function sendOtpEmail(user, otp) {
     },
   });
 
-  // Send mail with defined transport object
+  // Email content
+  const message = `You are receiving this email because you have registered an account. Please verify your email by clicking on the following link: ${verificationUrl}`;
+
+  await transporter.sendMail({
+    from: '"Hotel Booking JODQ" <hotelbookingswdev@gmail.com>', // sender address    to: user.email, // receiver (user's email)
+    to: user.email, // list of receivers
+    subject: "Email Verification", // subject line
+    text: message, // plain text body
+  });
+}
+
+async function sendResetPasswordEmail(user, resetUrl) {
+  // Configure your SMTP transporter
+  let transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "hotelbookingswdev@gmail.com", // replace with your email
+      pass: "cjqwklusnxnrzkyd", // replace with your email password
+    },
+  });
+
+  // Email content
+  const message = `You are receiving this email because you (or someone else) have requested the reset of a password. Please click on the following link, or paste it into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.`;
+
+  // Send email
   let info = await transporter.sendMail({
     from: '"Hotel Booking JODQ" <hotelbookingswdev@gmail.com>', // sender address
     to: user.email, // list of receivers
-    subject: "OTP for Email Verification", // Subject line
-    text: `Your OTP is ${otp}`, // plain text body
+    subject: "Password Reset Link", // Subject line
+    text: message, // plain text body
   });
 
-  console.log("Message sent: %s", info.messageId);
+  console.log("Password reset email sent: %s", info.messageId);
 }
 
-// @desc    Verify OTP
-// @route   POST /api/v1/auth/verify-otp
+// @desc    Forgot Password
+// @route   POST /api/v1/auth/forgotpassword
 // @access  Public
-exports.verifyOtp = async (req, res, next) => {
-  const { email, otp } = req.body;
-
+exports.forgotPassword = async (req, res, next) => {
   try {
-    const user = await User.findOne({
-      email,
-      otp,
-      otpExpire: { $gt: Date.now() },
-    });
+    const user = await User.findOne({ email: req.body.email });
 
     if (!user) {
       return res
-        .status(400)
-        .json({ success: false, msg: "Invalid or expired OTP" });
+        .status(404)
+        .json({ success: false, msg: "User not found with this email" });
     }
 
-    // OTP is valid, remove otp and otpExpire from user
-    user.isEmailVerified = true;
-    user.otp = undefined;
-    user.otpExpire = undefined;
+    // Get reset token
+    const resetToken = user.getResetPasswordToken();
+    await user.save({ validateBeforeSave: false });
+
+    // Create reset url
+    const resetUrl = `${req.protocol}://${req.get(
+      "host"
+    )}/api/v1/auth/resetpassword/${resetToken}`;
+
+    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to: \n\n ${resetUrl}`;
+
+    try {
+      await sendResetPasswordEmail(user, resetUrl);
+      res.status(200).json({ success: true, data: "Email sent" });
+    } catch (err) {
+      console.error(err);
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+      res.status(500).json({ success: false, msg: "Email could not be sent" });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, msg: "Server error" });
+  }
+};
+
+// @desc    Reset Password
+// @route   PUT /api/v1/auth/resetpassword/:resettoken
+// @access  Public
+exports.resetPassword = async (req, res, next) => {
+  try {
+    // Convert received token to hash
+    const resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(req.params.resettoken)
+      .digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, msg: "Invalid token" });
+    }
+
+    // Set new password and clear reset token fields
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
     await user.save();
 
     res
       .status(200)
-      .json({ success: true, message: "Email verified successfully" });
-  } catch (err) {
-    console.error("Error during OTP verification:", err); // Enhanced error logging
+      .json({ success: true, data: "Password reset successfully" });
+  } catch (error) {
+    console.error(`Reset Password error: ${error.message}`);
     res.status(500).json({ success: false, msg: "Server error" });
+  }
+};
+
+exports.verifyEmail = async (req, res, next) => {
+  try {
+    // Hash the verification token sent by the user
+    const verificationToken = crypto
+      .createHash("sha256")
+      .update(req.params.verificationToken)
+      .digest("hex");
+
+    // Find the user by the hashed verification token and ensure it's not expired
+    console.log(verificationToken);
+    const user = await User.findOne({
+      emailVerificationToken: verificationToken,
+      emailVerificationTokenExpire: { $gt: Date.now() }, // Ensure token is not expired
+    });
+
+    // If user is not found or token is expired, respond with an error
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired token" });
+    }
+
+    // If the user is found and token is valid, mark the email as verified
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationTokenExpire = undefined;
+    await user.save();
+
+    // Respond with success message
+    res
+      .status(200)
+      .json({ success: true, message: "Email verified successfully" });
+  } catch (error) {
+    // Handle any errors that occur during the verification process
+    console.error("Error verifying email:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -75,15 +176,17 @@ exports.register = async (req, res, next) => {
       role,
     });
 
-    // Generate OTP and set expiration
-    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
-    user.otp = otp;
-    user.otpExpire = Date.now() + 10 * 60 * 1000; // OTP expires in 10 minutes
+    // Generate verification token
+    const verificationToken = user.getVerificationToken();
+    await user.save({ validateBeforeSave: false });
 
-    await user.save();
+    // Create verification URL
+    const verificationUrl = `${req.protocol}://${req.get(
+      "host"
+    )}/api/v1/auth/verifyemail/${verificationToken}`;
 
-    // Send OTP via email
-    await sendOtpEmail(user, otp);
+    // Send verification email
+    await sendVerificationEmail(user, verificationUrl);
 
     // Send token response
     sendTokenResponse(user, 200, res);

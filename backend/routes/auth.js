@@ -7,6 +7,9 @@ const {
   getMe,
   logout,
   verifyOtp,
+  forgotPassword,
+  resetPassword,
+  verifyEmail,
 } = require("../controllers/auth");
 
 const router = express.Router();
@@ -110,33 +113,83 @@ router.get("/me", protect, getMe);
 
 /**
  * @swagger
- * /auth/verify-otp:
+ * /auth/verifyemail/{verificationToken}:
+ *   get:
+ *     summary: Verify email
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: verificationToken
+ *         required: true
+ *         description: The verification token received in the email
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       400:
+ *         description: Invalid or expired token
+ *       500:
+ *         description: Server error
+ */
+router.get("/verifyemail/:verificationToken", verifyEmail);
+
+/**
+ * @swagger
+ * /auth/forgotpassword:
  *   post:
- *     summary: Verify user's OTP
- *     tags: [Users]
+ *     summary: Request password reset
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - email
- *               - otp
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *               otp:
+ *     responses:
+ *       200:
+ *         description: Email sent for password reset
+ *       404:
+ *         description: User not found with this email
+ *       500:
+ *         description: Email could not be sent
+ */
+router.post("/forgotpassword", forgotPassword);
+
+/**
+ * @swagger
+ * /auth/resetpassword/{resettoken}:
+ *   put:
+ *     summary: Reset password
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: resettoken
+ *         required: true
+ *         description: The reset token received in the email
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               password:
  *                 type: string
  *     responses:
  *       200:
- *         description: Email verified successfully
+ *         description: Password reset successfully
  *       400:
- *         description: Invalid or expired OTP
+ *         description: Invalid token
  *       500:
  *         description: Server error
  */
-router.post("/verify-otp", verifyOtp);
+router.put("/resetpassword/:resettoken", resetPassword);
 
 module.exports = router;

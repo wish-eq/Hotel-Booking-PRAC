@@ -83,9 +83,9 @@ const swaggerOptions = {
   swaggerDefinition: {
     openapi: "3.0.0",
     info: {
-      title: "Library API",
+      title: "Hotel Booking JOD-Q API",
       version: "1.0.0",
-      description: "A simple Express VacQ API",
+      description: "A simple Express Hotel-Booking API",
     },
     servers: [
       {
