@@ -16,7 +16,7 @@ async function sendVerificationEmail(user, verificationUrl) {
   const message = `You are receiving this email because you have registered an account. Please verify your email by clicking on the following link: ${verificationUrl}`;
 
   await transporter.sendMail({
-    from: '"Hotel Booking JODQ" <hotelbookingswdev@gmail.com>', // sender address    to: user.email, // receiver (user's email)
+    from: '"Hotel Booking JOD-Q" <hotelbookingswdev@gmail.com>', // sender address    to: user.email, // receiver (user's email)
     to: user.email, // list of receivers
     subject: "Email Verification", // subject line
     text: message, // plain text body
@@ -38,7 +38,7 @@ async function sendResetPasswordEmail(user, resetUrl) {
 
   // Send email
   let info = await transporter.sendMail({
-    from: '"Hotel Booking JODQ" <hotelbookingswdev@gmail.com>', // sender address
+    from: '"Hotel Booking JOD-Q" <hotelbookingswdev@gmail.com>', // sender address
     to: user.email, // list of receivers
     subject: "Password Reset Link", // Subject line
     text: message, // plain text body
