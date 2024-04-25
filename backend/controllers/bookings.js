@@ -1,11 +1,19 @@
 const Booking = require("../models/Booking");
 const Hotel = require("../models/Hotel");
 
-// @desc    Get all bookings for logged in user
+// @desc    Get all bookings for logged in user or all bookings if admin
 // @route   GET /api/v1/bookings
 // @access  Private
 exports.getBookings = async (req, res, next) => {
-  const bookings = await Booking.find({ user: req.user.id }).populate("hotel");
+  let bookings;
+  if (req.user.role === "admin") {
+    // If the user is an admin, fetch all bookings from the database
+    bookings = await Booking.find({}).populate("hotel");
+  } else {
+    // If the user is not an admin, only fetch bookings for the logged-in user
+    bookings = await Booking.find({ user: req.user.id }).populate("hotel");
+  }
+
   res.status(200).json({
     success: true,
     count: bookings.length,
