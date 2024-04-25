@@ -52,7 +52,6 @@ exports.createBooking = async (req, res, next) => {
     }
   });
 
-  // Assuming req.body contains bookingDate with start and end properties
   const newCheckIn = new Date(req.body.bookingDate.start);
   const newCheckOut = new Date(req.body.bookingDate.end);
   if (isNaN(newCheckIn.getTime()) || isNaN(newCheckOut.getTime())) {
